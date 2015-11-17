@@ -3,11 +3,13 @@ from collections import Counter, namedtuple, OrderedDict
 from operator import itemgetter, mul, attrgetter
 import colorsys
 import webcolors
-from urllib2 import urlopen
+from urllib.request import urlopen
 from PIL import Image as Im
 from PIL import ImageChops, ImageDraw
-from colormath.color_objects import RGBColor
-import cStringIO
+from colormath import color_diff
+from colormath.color_objects import sRGBColor, LabColor
+from colormath.color_conversions import convert_color
+import io
 import json
 import random
 from math import sqrt
@@ -88,7 +90,9 @@ def get_color_name(requested_color):
 
 def distance(c1, c2):
     ''' Calculate the visual distance between the two colors. '''
-    return RGBColor(*c1).delta_e(RGBColor(*c2), method='cmc')
+    labColor1 = convert_color(sRGBColor(*c1), LabColor)
+    labColor2 = convert_color(sRGBColor(*c2), LabColor)
+    return color_diff.delta_e_cie2000(labColor1, labColor2)
 
 def rgb_to_hex(color):
     ''' Convert from RGB to Hex. '''
@@ -134,7 +138,7 @@ def extract_colors(imageData, n, format, output):
     # aggregate colors
     to_canonical = {WHITE: WHITE, BLACK: BLACK}
     aggregated = Counter({WHITE: 0, BLACK: 0})
-    sorted_cols = sorted(dist.iteritems(), key=itemgetter(1), reverse=True)
+    sorted_cols = sorted(dist.items(), key=itemgetter(1), reverse=True)
     for c, n in sorted_cols:
         if c in aggregated:
             # exact match!
@@ -152,7 +156,7 @@ def extract_colors(imageData, n, format, output):
 
     # order by prominence
     colors = sorted((Color(c, n / float(n_pixels)) \
-                for (c, n) in aggregated.iteritems()),
+                for (c, n) in aggregated.items()),
             key=attrgetter('prominence'),
             reverse=True)
 
@@ -322,7 +326,8 @@ def palette(**kwargs):
     # If the image is given as a URL
     if url:
         imageFile = urlopen(url)
-        imageData = cStringIO.StringIO(imageFile.read())
+        # imageData = cStringIO.StringIO(imageFile.read())
+        imageData = io.BytesIO(imageFile.read()) # Could actually be BytesIO()
         if not mode:
             return extract_colors(imageData, n, format, output)
         elif mode.lower() == 'kmeans' or mode.lower() == 'k-means':
@@ -335,5 +340,5 @@ def palette(**kwargs):
             return colorz(path, n, format, output)
     # Unknown format of image
     else:
-        print "Unable to get image. Exiting."
+        print("Unable to get image. Exiting.")
         sys.exit(0)
