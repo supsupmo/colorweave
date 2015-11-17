@@ -326,8 +326,7 @@ def palette(**kwargs):
     # If the image is given as a URL
     if url:
         imageFile = urlopen(url)
-        # imageData = cStringIO.StringIO(imageFile.read())
-        imageData = io.BytesIO(imageFile.read()) # Could actually be BytesIO()
+        imageData = io.BytesIO(imageFile.read())
         if not mode:
             return extract_colors(imageData, n, format, output)
         elif mode.lower() == 'kmeans' or mode.lower() == 'k-means':
